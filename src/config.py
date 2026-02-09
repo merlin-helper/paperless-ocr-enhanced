@@ -50,6 +50,6 @@ class Config:
         if not self.llm_api_key:
             errors.append("LLM_API_KEY is required")
         if self.llm_provider not in ("openai", "anthropic", "gemini"):
-            errors.append(f"LLM_PROVIDER must be 'openai' or 'anthropic', got '{self.llm_provider}'")
+            errors.append(f"LLM_PROVIDER must be 'openai', 'anthropic', or 'gemini', got '{self.llm_provider}'")
         if errors:
             raise ValueError("Configuration errors:\n  " + "\n  ".join(errors))
