@@ -5,6 +5,8 @@ import logging
 
 import openai
 import anthropic
+from google import genai
+from google.genai import types
 
 from .config import Config
 
@@ -57,8 +59,23 @@ async def ocr_image_anthropic(image_bytes: bytes, config: Config) -> str:
     return response.content[0].text if response.content else ""
 
 
+async def ocr_image_gemini(image_bytes: bytes, config: Config) -> str:
+    """Send an image to Google Gemini vision API and extract text."""
+    client = genai.Client(api_key=config.llm_api_key)
+    response = await client.aio.models.generate_content(
+        model=config.llm_model,
+        contents=[
+            types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+            config.ocr_prompt,
+        ],
+    )
+    return response.text or ""
+
+
 async def ocr_image(image_bytes: bytes, config: Config) -> str:
     """Route to the correct LLM provider for OCR."""
     if config.llm_provider == "anthropic":
         return await ocr_image_anthropic(image_bytes, config)
+    if config.llm_provider == "gemini":
+        return await ocr_image_gemini(image_bytes, config)
     return await ocr_image_openai(image_bytes, config)

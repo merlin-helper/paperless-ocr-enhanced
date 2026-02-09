@@ -15,8 +15,8 @@ services:
     environment:
       PAPERLESS_URL: "http://paperless-ngx:8000"
       PAPERLESS_TOKEN: "your-paperless-api-token"
-      LLM_PROVIDER: "openai"          # or "anthropic"
-      LLM_MODEL: "gpt-4o"             # or "claude-sonnet-4-20250514"
+      LLM_PROVIDER: "gemini"           # or "openai" or "anthropic"
+      LLM_MODEL: "gemini-2.0-flash"   # or "gpt-4o" or "claude-sonnet-4-20250514"
       LLM_API_KEY: "your-llm-api-key"
       TRIGGER_TAG: "ocr-redo"
       COMPLETE_TAG: "ocr-complete"

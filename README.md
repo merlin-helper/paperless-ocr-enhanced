@@ -1,6 +1,8 @@
 # paperless-ocr-enhanced
 
-LLM vision-based OCR for [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Replaces Tesseract OCR with GPT-4o or Claude for dramatically better text extraction, especially on complex layouts, handwriting, and low-quality scans.
+LLM vision-based OCR for [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Replaces Tesseract OCR with Google Gemini, GPT-4o, or Claude for dramatically better text extraction, especially on complex layouts, handwriting, and low-quality scans.
+
+> **💡 Recommended:** Use **Gemini 2.0 Flash** (`gemini` provider) — it tops OCR accuracy benchmarks and is the cheapest option.
 
 ## How it works
 
@@ -22,7 +24,8 @@ services:
     environment:
       PAPERLESS_URL: "http://paperless-ngx:8000"
       PAPERLESS_TOKEN: "your-api-token"
-      LLM_API_KEY: "sk-..."
+      LLM_PROVIDER: "gemini"
+      LLM_API_KEY: "your-google-ai-api-key"
     restart: unless-stopped
 ```
 
@@ -35,8 +38,8 @@ Then tag any document in Paperless-ngx with `ocr-redo` and it will be automatica
 | `PAPERLESS_URL` | ✅ | — | Paperless-ngx base URL |
 | `PAPERLESS_TOKEN` | ✅ | — | Paperless-ngx API token |
 | `LLM_API_KEY` | ✅ | — | OpenAI or Anthropic API key |
-| `LLM_PROVIDER` | | `openai` | `openai` or `anthropic` |
-| `LLM_MODEL` | | `gpt-4o` | Model to use for vision OCR |
+| `LLM_PROVIDER` | | `openai` | `openai`, `anthropic`, or `gemini` |
+| `LLM_MODEL` | | *(per provider)* | Model name (defaults: `gpt-4o`, `claude-sonnet-4-20250514`, `gemini-2.0-flash`) |
 | `TRIGGER_TAG` | | `ocr-redo` | Tag that triggers processing |
 | `COMPLETE_TAG` | | `ocr-complete` | Tag added after success |
 | `FAILED_TAG` | | `ocr-failed` | Tag added on failure |

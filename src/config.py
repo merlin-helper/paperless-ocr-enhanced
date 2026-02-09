@@ -24,7 +24,12 @@ class Config:
         self.paperless_url = os.environ.get("PAPERLESS_URL", "").rstrip("/")
         self.paperless_token = os.environ.get("PAPERLESS_TOKEN", "")
         self.llm_provider = os.environ.get("LLM_PROVIDER", "openai").lower()
-        self.llm_model = os.environ.get("LLM_MODEL", "gpt-4o")
+        self.llm_model = os.environ.get(
+            "LLM_MODEL",
+            {"openai": "gpt-4o", "anthropic": "claude-sonnet-4-20250514", "gemini": "gemini-2.0-flash"}.get(
+                self.llm_provider, "gpt-4o"
+            ),
+        )
         self.llm_api_key = os.environ.get("LLM_API_KEY", "")
         self.trigger_tag = os.environ.get("TRIGGER_TAG", "ocr-redo")
         self.complete_tag = os.environ.get("COMPLETE_TAG", "ocr-complete")
@@ -44,7 +49,7 @@ class Config:
             errors.append("PAPERLESS_TOKEN is required")
         if not self.llm_api_key:
             errors.append("LLM_API_KEY is required")
-        if self.llm_provider not in ("openai", "anthropic"):
+        if self.llm_provider not in ("openai", "anthropic", "gemini"):
             errors.append(f"LLM_PROVIDER must be 'openai' or 'anthropic', got '{self.llm_provider}'")
         if errors:
             raise ValueError("Configuration errors:\n  " + "\n  ".join(errors))
