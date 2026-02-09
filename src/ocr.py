@@ -1,5 +1,6 @@
 """LLM vision-based OCR module."""
 
+import asyncio
 import base64
 import logging
 
@@ -11,6 +12,9 @@ from google.genai import types
 from .config import Config
 
 logger = logging.getLogger(__name__)
+
+MAX_RETRIES = 5
+INITIAL_BACKOFF = 2.0  # seconds
 
 
 async def ocr_image_openai(image_bytes: bytes, config: Config) -> str:
@@ -72,10 +76,33 @@ async def ocr_image_gemini(image_bytes: bytes, config: Config) -> str:
     return response.text or ""
 
 
-async def ocr_image(image_bytes: bytes, config: Config) -> str:
+async def _ocr_dispatch(image_bytes: bytes, config: Config) -> str:
     """Route to the correct LLM provider for OCR."""
     if config.llm_provider == "anthropic":
         return await ocr_image_anthropic(image_bytes, config)
     if config.llm_provider == "gemini":
         return await ocr_image_gemini(image_bytes, config)
     return await ocr_image_openai(image_bytes, config)
+
+
+async def ocr_image(image_bytes: bytes, config: Config) -> str:
+    """OCR with exponential backoff on rate-limit errors."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await _ocr_dispatch(image_bytes, config)
+        except Exception as exc:
+            # Check for rate-limit (429) errors across providers
+            is_rate_limit = False
+            exc_str = str(exc).lower()
+            if "429" in exc_str or "resource_exhausted" in exc_str or "rate" in exc_str:
+                is_rate_limit = True
+            if hasattr(exc, "status_code") and getattr(exc, "status_code", 0) == 429:
+                is_rate_limit = True
+
+            if is_rate_limit and attempt < MAX_RETRIES - 1:
+                delay = INITIAL_BACKOFF * (2 ** attempt)
+                logger.warning("Rate limited (attempt %d/%d), retrying in %.1fs...",
+                               attempt + 1, MAX_RETRIES, delay)
+                await asyncio.sleep(delay)
+            else:
+                raise

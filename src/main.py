@@ -47,6 +47,9 @@ async def process_document(doc: dict, config: Config, client: PaperlessClient,
             page_texts.append(text)
             preview = text[:100].replace("\n", " ")
             logger.debug("[%d] Page %d text preview: %s", doc_id, i + 1, preview)
+            # Brief delay between pages to avoid rate limits
+            if i < len(images) - 1:
+                await asyncio.sleep(1.0)
 
         # Build searchable PDF
         logger.info("[%d] Building searchable PDF...", doc_id)
