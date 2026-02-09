@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  # Your existing Paperless-ngx instance
+  # paperless-ngx:
+  #   image: ghcr.io/paperless-ngx/paperless-ngx:latest
+  #   ports:
+  #     - "8000:8000"
+  #   ...
+
+  paperless-ocr-enhanced:
+    build: .
+    # Or use the pre-built image:
+    # image: ghcr.io/merlin-helper/paperless-ocr-enhanced:latest
+    environment:
+      PAPERLESS_URL: "http://paperless-ngx:8000"
+      PAPERLESS_TOKEN: "your-paperless-api-token"
+      LLM_PROVIDER: "openai"          # or "anthropic"
+      LLM_MODEL: "gpt-4o"             # or "claude-sonnet-4-20250514"
+      LLM_API_KEY: "your-llm-api-key"
+      TRIGGER_TAG: "ocr-redo"
+      COMPLETE_TAG: "ocr-complete"
+      POLL_INTERVAL: "30"
+      LOG_LEVEL: "info"
+      MAX_PAGES: "0"                   # 0 = unlimited
+    restart: unless-stopped
+    depends_on:
+      - paperless-ngx
