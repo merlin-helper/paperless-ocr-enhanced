@@ -107,8 +107,23 @@ async def process_document(doc: dict, config: Config, client: PaperlessClient,
 
 
 async def poll_loop(config: Config) -> None:
-    """Main polling loop."""
+    """Main polling loop with concurrent document processing."""
     client = PaperlessClient(config)
+    semaphore = asyncio.Semaphore(config.max_concurrent_docs)
+    active_tasks: dict[int, asyncio.Task] = {}  # doc_id -> task
+    in_progress_ids: set[int] = set()  # track docs we've already picked up
+
+    async def _process_with_semaphore(doc: dict) -> None:
+        doc_id = doc["id"]
+        async with semaphore:
+            if shutdown_event.is_set():
+                return
+            try:
+                await process_document(doc, config, client,
+                                       trigger_tag_id, complete_tag_id, failed_tag_id)
+            finally:
+                in_progress_ids.discard(doc_id)
+                active_tasks.pop(doc_id, None)
 
     try:
         # Resolve tag IDs
@@ -119,17 +134,36 @@ async def poll_loop(config: Config) -> None:
                      trigger_tag_id, complete_tag_id, failed_tag_id)
 
         while not shutdown_event.is_set():
+            # Clean up finished tasks
+            done_ids = [did for did, t in active_tasks.items() if t.done()]
+            for did in done_ids:
+                task = active_tasks.pop(did)
+                in_progress_ids.discard(did)
+                # Surface any unexpected exceptions in the log
+                if task.exception():
+                    logger.error("[%d] Task raised: %s", did, task.exception())
+
             try:
                 docs = await client.get_documents_by_tag(trigger_tag_id)
-                if docs:
-                    logger.info("Found %d document(s) to process", len(docs))
-                    for doc in docs:
+                # Filter out docs already being processed
+                new_docs = [d for d in docs if d["id"] not in in_progress_ids]
+                if new_docs:
+                    logger.info("Found %d queued, %d new, %d already in progress",
+                                len(docs), len(new_docs), len(in_progress_ids))
+                    for doc in new_docs:
                         if shutdown_event.is_set():
                             break
-                        await process_document(doc, config, client,
-                                               trigger_tag_id, complete_tag_id, failed_tag_id)
-                else:
+                        doc_id = doc["id"]
+                        in_progress_ids.add(doc_id)
+                        task = asyncio.create_task(
+                            _process_with_semaphore(doc),
+                            name=f"ocr-doc-{doc_id}",
+                        )
+                        active_tasks[doc_id] = task
+                elif not active_tasks:
                     logger.debug("No documents found with tag '%s'", config.trigger_tag)
+                else:
+                    logger.debug("%d document(s) still processing", len(active_tasks))
             except Exception:
                 logger.exception("Error during poll cycle")
 
@@ -138,6 +172,11 @@ async def poll_loop(config: Config) -> None:
                 await asyncio.wait_for(shutdown_event.wait(), timeout=config.poll_interval)
             except asyncio.TimeoutError:
                 pass
+
+        # Graceful shutdown: wait for active tasks to finish
+        if active_tasks:
+            logger.info("Shutting down — waiting for %d active task(s)...", len(active_tasks))
+            await asyncio.gather(*active_tasks.values(), return_exceptions=True)
 
     finally:
         await client.close()
@@ -159,6 +198,7 @@ def main() -> None:
     logger.info("Trigger tag: %s | Complete tag: %s", config.trigger_tag, config.complete_tag)
     logger.info("Poll interval: %ds | Max pages: %s",
                 config.poll_interval, config.max_pages or "unlimited")
+    logger.info("Concurrency: max %d documents in parallel", config.max_concurrent_docs)
     logger.info("Context: immediate=%d chars, summary=%d chars, condense every %d pages",
                 config.context_immediate_chars, config.context_summary_max_chars,
                 config.context_condense_every)

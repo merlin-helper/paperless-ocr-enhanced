@@ -66,6 +66,9 @@ class Config:
         self.context_condense_every = int(os.environ.get(
             "CONTEXT_CONDENSE_EVERY", str(CONTEXT_CONDENSE_EVERY)))
 
+        # Concurrency
+        self.max_concurrent_docs = int(os.environ.get("MAX_CONCURRENT_DOCS", "5"))
+
         # Fallback model config
         self.fallback_provider = os.environ.get("FALLBACK_PROVIDER", "").lower() or None
         self.fallback_model = os.environ.get("FALLBACK_MODEL", "")
