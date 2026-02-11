@@ -57,19 +57,22 @@ class PaperlessClient:
 
     async def get_documents_by_tag(self, tag_id: int) -> list[dict[str, Any]]:
         """List all documents with the given tag ID."""
+        from urllib.parse import urlparse, parse_qs
         client = await self._get_client()
         results: list[dict[str, Any]] = []
-        url = "/api/documents/"
         params: dict[str, Any] = {"tags__id__in": tag_id, "page_size": 100}
         while True:
-            resp = await client.get(url, params=params)
+            resp = await client.get("/api/documents/", params=params)
             resp.raise_for_status()
             data = resp.json()
             results.extend(data.get("results", []))
-            if not data.get("next"):
+            next_url = data.get("next")
+            if not next_url:
                 break
-            url = data["next"]
-            params = {}
+            # Parse the next URL to extract query params
+            # (httpx strips query params from full URLs when base_url is set)
+            parsed = urlparse(next_url)
+            params = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed.query).items()}
         return results
 
     async def download_original(self, doc_id: int) -> bytes:
