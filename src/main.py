@@ -6,6 +6,7 @@ import signal
 import sys
 
 from .config import Config
+from .context import DocumentContext
 from .paperless import PaperlessClient
 from .pdf import render_pages_to_images, build_searchable_pdf
 from .ocr import ocr_image
@@ -38,15 +39,33 @@ async def process_document(doc: dict, config: Config, client: PaperlessClient,
         images = render_pages_to_images(pdf_bytes, max_pages=config.max_pages)
         logger.info("[%d] Rendered %d pages", doc_id, len(images))
 
-        # OCR each page via LLM vision
+        # Initialize document context
+        ctx = DocumentContext(total_pages=len(images))
+
+        # OCR each page via LLM vision with rolling context
         page_texts: list[str] = []
         for i, img in enumerate(images):
+            ctx.current_page = i + 1
             logger.info("[%d] OCR page %d/%d via %s (%s)...", doc_id, i + 1, len(images),
                         config.llm_provider, config.llm_model)
-            text = await ocr_image(img, config)
-            page_texts.append(text)
-            preview = text[:100].replace("\n", " ")
+
+            # Build context-aware prompt prefix
+            context_prefix = ctx.build_context_prompt(config)
+            if i > 0:
+                logger.debug("[%d] Context size: %d chars (summary: %d, prev page: %d)",
+                             doc_id, len(context_prefix),
+                             len(ctx.rolling_summary), len(ctx.previous_page_text))
+
+            # Run OCR with context
+            raw_output = await ocr_image(img, config, context_prefix=context_prefix)
+
+            # Parse output: extract clean text and update rolling context
+            clean_text = ctx.update_after_page(raw_output, config)
+            page_texts.append(clean_text)
+
+            preview = clean_text[:100].replace("\n", " ")
             logger.debug("[%d] Page %d text preview: %s", doc_id, i + 1, preview)
+
             # Brief delay between pages to avoid rate limits
             if i < len(images) - 1:
                 await asyncio.sleep(1.0)
@@ -70,12 +89,8 @@ async def process_document(doc: dict, config: Config, client: PaperlessClient,
             "content": full_text,
         })
         logger.info("[%d] Updated tags and content for document", doc_id)
-
-        # Also upload the searchable PDF as archived version by overwriting
-        # Note: Paperless doesn't have a direct "replace archived" endpoint,
-        # so we update the content field which makes it searchable.
-        # The original file remains unchanged.
-        logger.info("[%d] ✅ Complete", doc_id)
+        logger.info("[%d] ✅ Complete (%d pages, final context: %d chars)",
+                     doc_id, len(page_texts), len(ctx.rolling_summary))
 
     except Exception:
         logger.exception("[%d] Failed to process document", doc_id)
@@ -144,6 +159,9 @@ def main() -> None:
     logger.info("Trigger tag: %s | Complete tag: %s", config.trigger_tag, config.complete_tag)
     logger.info("Poll interval: %ds | Max pages: %s",
                 config.poll_interval, config.max_pages or "unlimited")
+    logger.info("Context: immediate=%d chars, summary=%d chars, condense every %d pages",
+                config.context_immediate_chars, config.context_summary_max_chars,
+                config.context_condense_every)
 
     try:
         config.validate()
