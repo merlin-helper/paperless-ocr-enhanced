@@ -4,11 +4,13 @@ import os
 import logging
 
 DEFAULT_OCR_PROMPT = (
-    "Extract all text from this document page exactly as written. "
-    "Preserve the original layout, structure, paragraphs, and line breaks as closely as possible. "
-    "Include all headers, footers, captions, table content, and any visible text. "
-    "Do not add any commentary, explanation, or formatting markers. "
-    "Return only the raw text content."
+    "Extract all text from this document page as clean, well-structured markdown. "
+    "Format tables as proper markdown tables with | column | headers | and alignment rows. "
+    "Preserve headings (use # levels), lists, paragraphs, and logical structure. "
+    "For images, charts, maps, logos, diagrams, signatures, or other non-text visual elements, "
+    "provide a brief description in [square brackets], e.g. [US map showing regional divisions]. "
+    "Do not attempt to render visual elements as ASCII art. "
+    "Do not add any commentary or explanation — return only the document content."
 )
 
 LOG_LEVELS = {
