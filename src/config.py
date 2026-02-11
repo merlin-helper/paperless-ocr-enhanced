@@ -17,8 +17,18 @@ DEFAULT_OCR_PROMPT = (
     "Images: For images, charts, maps, logos, diagrams, signatures, or other non-text visual "
     "elements, provide a brief description in [square brackets], e.g. "
     "[US map showing regional divisions]. Do not render visual elements as ASCII art.\n\n"
-    "Return only the document content — no commentary or explanation."
+    "Return only the document content — no commentary or explanation.\n\n"
+    "OUTPUT FORMAT: Return the extracted content first, then on a new line write exactly:\n"
+    "---CONTEXT---\n"
+    "Followed by a brief 1-2 sentence summary of what this page contributes to the document "
+    "(document type, key entities, table structures, form patterns, important details). "
+    "This context helps process subsequent pages."
 )
+
+# Context window settings
+CONTEXT_IMMEDIATE_CHARS = 1500   # chars from previous page to include
+CONTEXT_SUMMARY_MAX_CHARS = 1500  # max chars for rolling document summary
+CONTEXT_CONDENSE_EVERY = 10      # condense rolling summary every N pages
 
 LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -49,6 +59,22 @@ class Config:
             os.environ.get("LOG_LEVEL", "info").lower(), logging.INFO
         )
         self.max_pages = int(os.environ.get("MAX_PAGES", "0"))
+        self.context_immediate_chars = int(os.environ.get(
+            "CONTEXT_IMMEDIATE_CHARS", str(CONTEXT_IMMEDIATE_CHARS)))
+        self.context_summary_max_chars = int(os.environ.get(
+            "CONTEXT_SUMMARY_MAX_CHARS", str(CONTEXT_SUMMARY_MAX_CHARS)))
+        self.context_condense_every = int(os.environ.get(
+            "CONTEXT_CONDENSE_EVERY", str(CONTEXT_CONDENSE_EVERY)))
+
+        # Fallback model config
+        self.fallback_provider = os.environ.get("FALLBACK_PROVIDER", "").lower() or None
+        self.fallback_model = os.environ.get("FALLBACK_MODEL", "")
+        self.fallback_api_key = os.environ.get("FALLBACK_API_KEY", "")
+
+        # Second fallback (tertiary) model config
+        self.fallback2_provider = os.environ.get("FALLBACK2_PROVIDER", "").lower() or None
+        self.fallback2_model = os.environ.get("FALLBACK2_MODEL", "")
+        self.fallback2_api_key = os.environ.get("FALLBACK2_API_KEY", "")
 
     def validate(self) -> None:
         errors: list[str] = []
