@@ -4,13 +4,20 @@ import os
 import logging
 
 DEFAULT_OCR_PROMPT = (
-    "Extract all text from this document page as clean, well-structured markdown. "
-    "Format tables as proper markdown tables with | column | headers | and alignment rows. "
-    "Preserve headings (use # levels), lists, paragraphs, and logical structure. "
-    "For images, charts, maps, logos, diagrams, signatures, or other non-text visual elements, "
-    "provide a brief description in [square brackets], e.g. [US map showing regional divisions]. "
-    "Do not attempt to render visual elements as ASCII art. "
-    "Do not add any commentary or explanation — return only the document content."
+    "Extract all text from this document page as clean, well-structured markdown.\n\n"
+    "Tables: Convert ANY tabular or columnar data into proper markdown tables using | pipes | "
+    "and |---| separator rows. This includes lab results, financial line items, invoices, "
+    "itemized lists with values, schedules, and any data arranged in columns — even if the "
+    "original uses spaces or visual alignment instead of grid lines. Never preserve "
+    "space-aligned columnar layouts; always convert them to pipe-delimited markdown tables.\n\n"
+    "Headings: Use proper markdown heading hierarchy — # for title, ## for sections, "
+    "### for subsections.\n\n"
+    "Formatting: Use **bold** for form field labels and key terms. Preserve all numbers, "
+    "dates, dollar amounts, and reference numbers exactly as written.\n\n"
+    "Images: For images, charts, maps, logos, diagrams, signatures, or other non-text visual "
+    "elements, provide a brief description in [square brackets], e.g. "
+    "[US map showing regional divisions]. Do not render visual elements as ASCII art.\n\n"
+    "Return only the document content — no commentary or explanation."
 )
 
 LOG_LEVELS = {
