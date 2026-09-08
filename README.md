@@ -4,6 +4,21 @@ LLM vision-based OCR for [Paperless-ngx](https://github.com/paperless-ngx/paperl
 
 > **💡 Recommended:** Use **Gemini 2.0 Flash** (`gemini` provider) — it tops OCR accuracy benchmarks and is the cheapest option.
 
+## Processing preview
+
+```mermaid
+flowchart LR
+    Tag[Document tagged ocr-redo] --> PDF[Download original PDF]
+    PDF --> Render[Render page images]
+    Render --> Vision[Vision-model text extraction]
+    Vision --> Update[Update Paperless content]
+    Update --> Done[Completion tag]
+```
+
+*Tag a document in Paperless-ngx, let the service process its pages, and find the extracted text back in Paperless. The diagram shows that flow.*
+
+[Read the project case study](https://blakemccarn.dev/work/paperless-ocr-enhanced)
+
 ## How it works
 
 1. Polls Paperless-ngx for documents tagged with a trigger tag (default: `ocr-redo`)
